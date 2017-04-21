@@ -7,6 +7,7 @@
 
 #define len(x) ((long long) log10(x) + 1)
 
+// Node structure used to build a tree
 struct node
 {
 	long long value;
@@ -16,27 +17,32 @@ struct node
 
 typedef struct node Node;
 
+// Variables for the code table
 long long alphabetFrequencies [27] = {8, 2, 3, 4, 12, 2, 2, 6, 7, 2, 0, 4, 2, 6, 7, 2, 1, 5, 5, 7, 3, 1, 2, 0, 2, 0, 5};   
 long long codeTable[27], invertedCodeTable[27]; 
-long long original, compressed = 0;
 
-int fileSize = 0;
+// Variables for working with the file
+long long original, compressed = 0L;
+long long fileSize = 0L;
 FILE *inputFile;
 void *buffer;
 
-long long findSmallest (Node *subTrees[], long long differentFrom)
+// Finds the smallest node in 'subtrees' excluding 'exclude'
+long long findSmallest (Node *subTrees[], long long exclude)
 {
-	long long smaller;
+	long long smallest;
 	long long i = 0L;
-	
+
+	// Ignore nodes whose value is -1 i.e. have been summed into a parent node
 	while(subTrees[i]->value == -1)
 	{
 		i++;
 	}
 	
-	smaller = i;
+	smallest = i;
 	
-	if(i == differentFrom)
+	// If the node found is 'exclude' skip over it and look for the next node
+	if(i == exclude)
 	{
 		i++;
 		while(subTrees[i]->value == -1)
@@ -44,35 +50,35 @@ long long findSmallest (Node *subTrees[], long long differentFrom)
 			i++;
 		}
 		
-		smaller = i;
+		// Reassign smallest to the next node after exclude
+		smallest = i;
 	}
 	
+	// Iterate through subtrees to find the node with the smallest value
 	for(i = 1; i < 27; i++)
 	{
-		if(subTrees[i]->value == -1)
+		if(subTrees[i]->value != -1 && i != exclude)
 		{
-			continue;
-		}
-		if (i == differentFrom)
-		{
-			continue;
-		}
-		if(subTrees[i]->value < subTrees[smaller]->value)
-		{
-			smaller = i;
+			if(subTrees[i]->value < subTrees[smallest]->value)
+			{
+				smallest = i;
+			}
 		}
 	}
 	
-	return smaller;
+	// Return the smallest node
+	return smallest;
 }
 
+// Builds the huffman tree to encode and decode text
 void buildTree (Node **tree)
 {
 	Node *temp;
 	Node *array[27];
-	long long i, subTrees = 27L;
+	int i, subTrees = 27;
 	long long smallOne, smallTwo;
 	
+	// Build the array of leaf nodes for the tree
 	for (i = 0; i < 27; i++)
 	{
 		array[i] = (Node*) malloc(sizeof(Node));
@@ -82,33 +88,50 @@ void buildTree (Node **tree)
 		array[i]->right = NULL;
 	}
 	
+	// Find the two smallest subtrees and create a parent node that's value is the sum of the 2 smallest nodes' values and does not have a letter associated with it
+	// Repeat until the tree is complete
 	while(subTrees > 1)
 	{
+		// Find smallest nodes
 		smallOne = findSmallest(array, -1);
 		smallTwo = findSmallest(array, smallOne);
 		temp = array[smallOne];
+		
+		// Create a new node at smallOne's index
 		array[smallOne] = (Node*) malloc(sizeof(Node));
+		
+		// New node's value is the sum of smallOne and smallTwo's values
 		array[smallOne]->value = temp->value + array[smallTwo]->value;
+		
+		// Don't associate a letter to the parent node
 		array[smallOne]->letter = 127;
+		
+		// Assign smallOne an smallTwo as the left and right children of the new parent node
 		array[smallOne]->left = array[smallTwo];
 		array[smallOne]->right = temp;
+		
+		// Negate smallTwo's value so that it's not found as one of the smallest nodes anymore
 		array[smallTwo]->value = -1;
 		subTrees--;
 	}
 	
+	// Assign *tree to the root of the completed tree
 	*tree = array[smallOne];
 	
 	return;
 }
 
+// Create the table used to encode/decode text
 void fillTable(long long codeTable[], Node *tree, long long Code)
 {
+	// Only assign codes to leaf nodes i.e. those that have letters associated with them
 	if(tree->letter < 27)
 	{
 		codeTable[ (long long) tree->letter] = Code;
 	}
 	else
 	{
+		// If the current node wasn't a leaf, keep working down the tree
 		fillTable(codeTable, tree->left, Code * 10 + 1);
 		fillTable(codeTable, tree->right, Code * 10 + 2);
 	}
@@ -116,11 +139,12 @@ void fillTable(long long codeTable[], Node *tree, long long Code)
 	return;
 }
 
+// Serial implementation of file compression
 void compressFileSerial ()
 {
 	char bit, c, x = 0;
 	int n, length, bitsLeft = 8;
-	int originalBits = 0, compressedBits = 0;
+	long long originalBits = 0, compressedBits = 0;
 	int i = 0;
 	
 	char strbuffer[12];
@@ -275,7 +299,7 @@ int main()
 	inputFile = fopen(inFile, "r");
 	
 	fseek(inputFile, 0L, SEEK_END);
-	fileSize = (int) ftell(inputFile);
+	fileSize = (long long) ftell(inputFile);
 	fseek(inputFile, 0L, SEEK_SET);
 	
 	//Start timing
