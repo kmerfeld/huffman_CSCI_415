@@ -19,12 +19,12 @@ typedef struct node Node;
 
 // Variables for the code table
 long long alphabetFrequencies [27] = {8, 2, 3, 4, 12, 2, 2, 6, 7, 2, 0, 4, 2, 6, 7, 2, 1, 5, 5, 7, 3, 1, 2, 0, 2, 0, 5};   
-long long codeTable[27], invertedCodeTable[27]; 
+// Code table for the letters, no letter should ever have a code longer that 50 characters
+int codeTable[27][50]; 
+int treeHeight = 0;
 
 // Variables for working with the file
 long long original, compressed = 0L;
-long long fileSize = 0L;
-FILE *inputFile;
 void *buffer;
 
 // Finds the smallest node in 'subtrees' excluding 'exclude'
@@ -104,7 +104,7 @@ void buildTree (Node **tree)
 		array[smallOne]->value = temp->value + array[smallTwo]->value;
 		
 		// Don't associate a letter to the parent node
-		array[smallOne]->letter = 127;
+		array[smallOne]->letter = 28;
 		
 		// Assign smallOne an smallTwo as the left and right children of the new parent node
 		array[smallOne]->left = array[smallTwo];
@@ -122,26 +122,62 @@ void buildTree (Node **tree)
 }
 
 // Create the table used to encode/decode text
-void fillTable(long long codeTable[], Node *tree, long long Code)
+void fillTable(int code[], Node *tree, int index)
 {
+	int i;
+	
+	// Assign 1 to the right edge and follow down the tree
+	if(tree->right)
+	{
+		code[index] = 1;
+		fillTable(code, tree->right, index + 1);
+	}
+	
+	// Assign 0 to the left edge and follow down the tree
+	if(tree->left)
+	{
+		code[index] = 0;
+		fillTable(code, tree->left, index + 1);
+	}
+	
 	// Only assign codes to leaf nodes i.e. those that have letters associated with them
 	if(tree->letter < 27)
 	{
-		codeTable[ (long long) tree->letter] = Code;
-	}
-	else
-	{
-		// If the current node wasn't a leaf, keep working down the tree
-		fillTable(codeTable, tree->left, Code * 10 + 1);
-		fillTable(codeTable, tree->right, Code * 10 + 2);
+		// Populate the code for the current letter
+		for(i = 0; i < index; i++)
+		{
+			codeTable[tree->letter][i] = code[i];
+		}
+		
+		// Negate all values after the code for the current letter so they aren't read when compressing the file
+		for(i = index; i < 50; i++)
+		{
+			codeTable[tree->letter][i] = -1;
+		}
 	}
 	
 	return;
 }
 
 // Serial implementation of file compression
-void compressFileSerial ()
+void compressFileSerial (long long fileSize, FILE *output)
 {
+	// This doesn't work right now. Compression is more complicated than originally thought
+	long long originalBits = 0L, compressedBits = 0L;
+	int i, readin = 0;
+	char currentChar;
+	
+	char *charbuf = (char *)buffer;
+	
+	while(fileSize > readin)
+	{
+		originalBits++;
+		readin++;
+		
+		
+	}
+	
+	/*
 	char bit, c, x = 0;
 	int n, length, bitsLeft = 8;
 	long long originalBits = 0, compressedBits = 0;
@@ -152,7 +188,6 @@ void compressFileSerial ()
 	FILE *output = fopen(strbuffer, "w");
 	
 	char *charbuf = (char *)buffer;
-	
 	while((c = charbuf[i]) != 10)
 	{
 		i++;
@@ -191,9 +226,7 @@ void compressFileSerial ()
 	{
 		x = x << (bitsLeft - 1);
 		fputc(x, output);
-	}
-	
-	free(output);
+	}*/
 	
 	original += originalBits;
 	compressed += compressedBits;
@@ -207,6 +240,11 @@ void decompressFile(FILE *inputFile, FILE *output, Node *tree)
 	char c, bit;
 	char mask = 1 << 7;
 	int i, readin = 0;
+	long long fileSize = 0L;
+	
+	fseek(inputFile, 0L, SEEK_END);
+ 	fileSize = (long long) ftell(inputFile);
+  	fseek(inputFile, 0L, SEEK_SET);
 	
 	while(fileSize > readin)
 	{
@@ -256,56 +294,43 @@ void decompressFile(FILE *inputFile, FILE *output, Node *tree)
 	return;
 }
 
-void invertCodes(long long codeTable[], long long invertedCodeTable[])
-{
-	long long i, n, copy;
-	
-	for(i = 0; i < 27; i++)
-	{
-		n = codeTable[i];
-		copy = 0L;
-		
-		while(n > 0)
-		{
-			copy = copy * 101 + n % 101;
-			n /= 101;
-		}
-		invertedCodeTable[i] = copy;
-	}
-	
-	return;
-}
-
 int main()
 {
 	Node *tree;
-	int compress, parallel;
-	char inFile[20];
+	int compress, parallel, i;
+	int code[50];
+	long long fileSize = 0L;
+	FILE *inputFile, *outputFile;
 	
+	// Build the tree
 	printf("Building the Huffman Tree...\n");
 	buildTree(&tree);
 	
+	// Make the code table
 	printf("Making the code table...\n");
-	fillTable(codeTable, tree, 0L);
+	fillTable(code, tree, 0);
 	
-	printf("Inverting code table...\n");
-	invertCodes(codeTable, invertedCodeTable);
+	/*for(i = 0; i < 27; i++)
+	{
+		printf("Code table %i: ", i);
+		for(int j = 0; j < 50; j++)
+			printf("%i", codeTable[i][j]);
+		printf("\n");
+	}*/
 	
-	printf("Name of the file to process >");
-	scanf("%s", inFile);
+	// Get the file to process and whether to compress or decompress it
 	printf("Type 0 to decompress or 1 to compress >");
 	scanf("%i", &compress);
-	
-	inputFile = fopen(inFile, "r");
-	
-	fseek(inputFile, 0L, SEEK_END);
-	fileSize = (long long) ftell(inputFile);
-	fseek(inputFile, 0L, SEEK_SET);
 	
 	//Start timing
 	
 	if(compress == 1)
 	{
+		// Open the files
+		inputFile = fopen("original.txt", "r");
+		outputFile = fopen("decompressed.txt", "w");
+		
+		// Decide whether or not to compress in parallel
 		printf("Type 0 for serial compression or 1 for parallel compression >");
 		scanf("%i", &parallel);
 		
@@ -315,22 +340,32 @@ int main()
 			exit(0);
 		}
 		else
-		{
+		{	
+			fseek(inputFile, 0L, SEEK_END);
+			fileSize = (long long) ftell(inputFile);
+			fseek(inputFile, 0L, SEEK_SET);
 			buffer = (void *) malloc(fileSize);
 			pread(fileno (inputFile), buffer, (size_t)(fileSize), (off_t)0);
 			free(inputFile);
 			
+			
+			// Compress the file
 			printf("Compressing file...\n");
-			compressFileSerial();
+			compressFileSerial(fileSize, outputFile);
+			free(outputFile);
 		}
 	}
 	else 
 	{
+		// Open the files
+		inputFile = fopen("compressed.txt", "r");
+		outputFile = fopen("decompressed.txt", "w");
+		
+		// Decompress the file
 		printf("Decompressing file...\n");
-		FILE *output = fopen("decompressed.txt", "w");
-		decompressFile(inputFile, output, tree);
+		decompressFile(inputFile, outputFile, tree);
 		free(inputFile);
-		free(output);
+		free(outputFile);
 	}
 	
 	// Stop timing

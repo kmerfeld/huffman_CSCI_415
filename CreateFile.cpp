@@ -18,20 +18,15 @@ int main()
 	int letterStart = 0;
 	int letterEnd = 0;
 	
-	// File to write to
-	FILE *file;
-	
 	// Get filesize and name of the file to write to
 	printf ("Enter the size of the file in Gb > ");
 	scanf  ("%f", &filesize);
-	printf ("Enter the name of the output file > ");
-	scanf  ("%s", output);
-	
+
 	// Get the number of characters to write to the file
 	characters = filesize * bytesPerGb;
 	
 	// Open the file 
-	file = fopen(output, "w");
+	FILE *file = fopen("original.txt", "w");
 	
 	// Check for problems opening the file
 	if(file == NULL)
