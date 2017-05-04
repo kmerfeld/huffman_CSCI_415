@@ -1,0 +1,79 @@
+ # Huffman Algorithm (Final Project)
+
+## Wizards who made this
+Kyle Merfeld
+Gage Askegard
+Brandon Grindall
+
+
+#Project Website
+http://students.cs.ndsu.nodak.edu/~grindall/FinalProjectWebpage.html
+
+#Summary
+
+We are going to implement a parallelized version of the Huffman Coding algorithm to speed up the process of encoding files to be compressed and decompressed. We will compare it to the serial implementation of this algorithm as well.
+
+#Background
+
+Huffman Coding is an algorithm for creating optimal prefix code. This code is usually used for lossless data compression. The output of this algorithm is a variable-length code table that can be used to encode symbols. This tableâ€™s values are derived from probability or frequency of each symbol in the source file. More common symbols are represented by fewer bits to help reduce the size of the file being compressed.
+
+The basic technique for creating the prefix code to compress files involves creating a binary tree that starts with n leaf nodes, where n is the number of symbols in the source. Each leaf node contains the probability of the symbol it represents. The two leaf nodes with the lowest probability are combined to create a parent node with a probability equal to the sum of the two child nodeâ€™s probabilities. The parent node has a bit 0 that references the left child and a bit 1 that references the right child. This pattern is continued until there is only one node remaining; this node will be the root of the tree. The tree can then be traversed from right to left, using the combination of bits required to get to a leaf node as the code for the symbol represented by that leaf node. This code can then be used to compress and decompress files.
+
+The main area of this problem that can be benefited by parallelism is splitting the input source into chunks to be encoded. Each processor can be assigned a chunk of the source and encode it in parallel. These encoded chunks can then be output to intermediate areas and then concatenated together afterwards to produce the final output.
+
+#Challenges
+
+Huffman Coding will be a challenge for several reasons. One of the biggest reasons is that none of us have done anything related to file compression in past projects or work experiences. Working with binary trees is also a relatively unknown concept to us. Parallelizing this problem will also be difficult because we will have multiple threads working on pieces of the same source. This means there will be constraints on how and what threads can read from the source. It will also require that the threads are properly synced when they finish their chunk of work. Properly concatenating the immediate results will also add an extra challenge that doesnâ€™t exist in the serial implementation. This project will require quite a fair amount of communication, mostly in the form of reading from the source and synchronizing the threads.
+
+#Resources
+
+We do not have many resource requirements for this project. The program can run on any computer that has a C compiler installed. We will be starting this project from scratch. We will be using the general algorithm for Huffman Coding from its Wikipedia page
+
+#Goals and Deliverables
+
+We plan to achieve:
+
+A functioning serial implementation that uses Huffman Coding to encode a source file to compress and decompress along with timing for the solution
+A functioning parallel implementation that uses Huffman Coding to encode a source file to compress and decompress along with timing for the solution
+A program that can create very large files containing strings of characters to be compressed and decompressed.
+We hope to achieve:
+
+Our implementations of Huffman Coding will be able to accept files that contain any character (more than just letters of the alphabet). This should be achievable by establishing probabilities for more than just letters. Many implementations only establish probabilities for letters by using their frequency in the English language. We would just need to use a different guideline for establishing probabilities for characters.
+For our demo, we will use a lab244 computer to show our project. First, weâ€™ll create a very large file that contains a random string of characters. We will then run our serial and parallel encoding and compression programs on it and compare the time taken by each. We will also prove the programs worked by showing the difference in size of the original and compressed files. Finally, we will decompress both files to show full functionality of our project (decompression is not done in parallel however).
+
+#Platform
+
+This project will be written in C and will take advantage of pthreads to implement parallelism. The program will be run on the lab244 computers. Pthreads make sense for this project because they are simple to implement and this problem wouldnâ€™t be able to make use of the extreme threading capabilities that CUDA offers. This problem also involves a fair bit of reading and writing which is also better suited for pthreads than a technology like CUDA.
+
+#Schedule
+
+Week 4/3/17:
+
+Finish file creation program
+Start on serial implementation
+Week 4/10/17:
+
+Finish serial implementation
+Start on parallel implementation
+Work on project checkpoint report
+Week 4/17/17:
+
+Finish project checkpoint report
+Have the bulk of the parallel implementation completed
+Week 4/24/17:
+
+Finish parallel implementation (Kyle with help from team)
+Prepare for demo
+- PowerPoint (Gage)
+- Live Demo (Brandon)
+Week 5/1/17:
+
+Complete the rest of the parrallel implementation (Kyle, Brandon and Gage)
+Work on final write up (Gage)
+Potential: Demo project (Brandon)
+Week 5/8/17:
+
+Finish final write up (Gage)
+Potential: Demo project
+
+
