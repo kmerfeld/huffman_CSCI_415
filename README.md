@@ -5,4 +5,6 @@ Huffman compression algorithm in c++ using pthreads
 Type 'make ' into the command prompt. That's all.
 
 ## To Run
-Type './HuffmanCoding' into the command prompt and then follow the prompts.
+> Type './CreateFile' into the command promp and then enter the size (in GB) of the file to compress
+
+> Type './HuffmanCoding' into the command prompt and then follow the prompts
