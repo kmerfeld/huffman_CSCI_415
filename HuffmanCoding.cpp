@@ -9,14 +9,20 @@
 #include "timer.h"
 using namespace std;
 
+// Used to store characters and their frequencies
 const int asciiLength = 256;
 int letterCount[asciiLength];
 string codes[asciiLength];
+
+// Used to tell how much memory compression saves
 long long originalSize = 0, compressedSize = 0;
+
+// Threading variables
 int numThreads;
 pthread_mutex_t mutex;
 pthread_cond_t conditional;
 
+// Structure used to make a tree
 struct node
 {
 	long long value;
@@ -24,6 +30,7 @@ struct node
 	struct node *left, *right;
 };
 
+// Compare class used to compare node values. Used for the priority queue
 class compare
 {
 public:
@@ -33,8 +40,11 @@ public:
 	}
 };
 
+// Priority queue used to make the tree
 typedef std::priority_queue<node*, vector<node*>, compare> nodeTree;
 
+// Builds the huffman tree by finding the two smallest nodes and summing their values 
+// to create a parent node for the two cild nodes
 void buildTree(nodeTree &tree)
 {
 	while(tree.size() > 1)
@@ -51,11 +61,12 @@ void buildTree(nodeTree &tree)
 	return;
 }
 
-// Travers the tree to create the codes. Add 0 for left and 1 for right
+// Traverse the tree to create the codes. Add 0 for left and 1 for right
 void createCode(node *tree)
 {
 	static string bitCode = "";
 	
+	// Add a 1 to the code for nodes on the right
 	if(tree->right != NULL)
 	{
 		bitCode += "1";
@@ -63,6 +74,7 @@ void createCode(node *tree)
 		bitCode = bitCode.substr(0, bitCode.size() - 1);
 	}
 	
+	// Add a 0 to the code for nodes on the left
 	if(tree->left != NULL)
 	{
 		bitCode += "0";
@@ -70,6 +82,7 @@ void createCode(node *tree)
 		bitCode = bitCode.substr(0, bitCode.size() - 1);
 	}
 	
+	// Assign the code for the leaf's letter once we reach a leaf node
 	if(!tree->left && !tree->right)
 	{
 		codes[tree->letter] = bitCode;
@@ -77,6 +90,7 @@ void createCode(node *tree)
 	return;
 }
 
+// Gets the frequency of each character in the file
 void countLetters(string file, long long &count)
 {
 	char letter;
@@ -100,30 +114,37 @@ void countLetters(string file, long long &count)
 	return;
 }
 
+// Compresses the file in serial or parallel
 void* compressFile (void *threadId)
 {
+	// Thread id 
 	long id = (long) threadId;
+	
+	// Used to get the size of a partition and where to start and end the partition
 	long long partition = originalSize / numThreads;
 	long long start = id * partition;
 	long long end;
+	
+	// Character and file reading variables
 	char input;
 	ofstream outf;
 	bitChar bChar;
 	string bits = "";
 	string inFile = "original.txt";
-
 	char outFile[16];
 	sprintf(outFile, "compressed-%i.mpc", (int) id);
 	
+	// If its the last thread, the end of the file is always the end of the partition
 	if(numThreads - 1 == id)
 	{
 		end = originalSize;
 	}
-	else
+	else // otherwise find the correct partition
 	{
 		end = (id + 1) * partition;
 	}
 	
+	// Read in the original file
 	ifstream inf(inFile.c_str());
 	inf.seekg(start);
 	inf >> noskipws;
@@ -135,10 +156,13 @@ void* compressFile (void *threadId)
 	
 	inf.close();
 
+	// Prepare to write to the compressed file
 	bChar.setBits(bits);
 	outf.open(outFile);
 	outf << noskipws;
 
+	// Write to the compressed file and increase the bit count
+	// Need mutual exclusion here to not overwrite compressedSize
 	pthread_mutex_lock(&mutex);
 	compressedSize += bChar.insertBits(outf);
 	pthread_mutex_unlock(&mutex);
@@ -169,24 +193,30 @@ int main()
 	printf("Type 0 to decompress or 1 to compress >");
 	scanf("%i", &compress);
 	
+	// If the user decides to compress the file
 	if( compress == 1)
 	{
+		//initialize threading variables
 		printf("How many threads would you like to use? >");
 		scanf("%i", &numThreads);
 		pthread_t threads[numThreads];
 		
+		// Set up input and output files
 		inFile = "original.txt";
 		outFile = "compressed.mpc";
 		
 		outf.open(outFile.c_str());
 		
+		// Get lettter frequencies
 		countLetters(inFile, originalSize);
 		
+		// Make sure to add an EOT character
 		if(letterCount[3] == 0)
 		{
 			letterCount[3] = 1;
 		}
 		
+		// Output the frequency of each character at the top of the file to use when decoding the file
 		for(i = 0; i < asciiLength; i++)
 		{
 			outf << letterCount[i] << " ";
@@ -194,6 +224,7 @@ int main()
 		outf << endl;
 		outf << '#';
 		
+		// Make a node for each symbol in the file
 		for (i = 0; i < asciiLength; i++)
 		{
 			if(letterCount[i] > 0)
@@ -208,6 +239,7 @@ int main()
 			}
 		}
 		
+		// Build the tree and make the code table
 		printf("Building tree...\n");
 		buildTree(tree);
 		printf("Creating codes...\n");
@@ -215,6 +247,8 @@ int main()
 		
 		printf("Starting compression timer...\n");
 		GET_TIME(startTime);
+		
+		// Launch the threads to compress the file
 		for(thread = 0; thread < numThreads; thread++)
 		{
 			pthread_create(&threads[(int)thread], NULL, compressFile, (void*) thread);
@@ -222,32 +256,38 @@ int main()
 		
 		printf("Compressing...\n");
 		
+		// Wait for threads to finish
 		for(thread = 0; thread < numThreads; thread++)
 		{
 			pthread_join(threads[(int)thread], NULL);
 			pthread_detach(threads[thread]);
 		}
+		
+		// Combine the individual partitions
 		printf("Combining partitions...\n");
 		system("./combine.sh");
 		
+		// Print an EOT character at the end of the file
 		outf << codes[3];
 		
 		printf("Stopping compression timer...\n");
 		GET_TIME(endTime);
 		elapsedTime = endTime - startTime;
 		
+		// Get the amount of memory saved  and how much time compression took
 		memorySaved = 100 - ((float)compressedSize / ((float)originalSize * 8.0) * 100.0);
 		printf("File successfully compressed!\n");
 		printf("Saved %.2f%% of space\n", memorySaved);
 		printf("Compression took %f seconds with %d threads\n", elapsedTime, numThreads);
 	}
-	else
+	else // Otherwise decompress the file
 	{
 		inFile = "compressed.mpc";
 		outFile = "decompressed.txt";
 		inf.open(inFile.c_str());
 		outf.open(outFile.c_str());
 		
+		// Create a node for each character
 		for(i = 0; i < asciiLength; i++)
 		{
 			inf >> letterCount[i];
@@ -263,18 +303,20 @@ int main()
 			}
 		}
 		
+		// Build a tree and codes
 		printf("building tree...\n");
 		buildTree(tree);
 		printf("creating codes...\n");
 		createCode(tree.top());
 		
+		// Read the header of the file (frequencies of the characters)
 		while(inChar != '#')
 		{
 			inf >> inChar;
 		}
 		
+		// Convert the bits in the file to character 1's and 0's
 		inf >> noskipws;
-		
 		while(inf >> inChar)
 		{
 			bits += bChar.getBits(inChar);
@@ -282,6 +324,7 @@ int main()
 		
 		inf.close();
 		
+		// Convert the character 1's and 0's into actual characters after finding a matching code
 		for(i = 0; i < bits.length(); i++)
 		{
 			bitsSub += bits[i];

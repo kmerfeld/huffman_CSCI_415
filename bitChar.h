@@ -7,6 +7,7 @@ using namespace std;
 class bitChar
 {
 public:
+	// Members of bitChar class
 	unsigned char *ch;
 	int bitShiftCount;
 	string BITS;
@@ -19,18 +20,21 @@ public:
 	void freeCh();
 };
 
+// Constructor
 bitChar::bitChar()
 {
 	bitShiftCount = 0;
 	ch = (unsigned char*)calloc(1, sizeof(char));
 }
 
+// Setter for BITS
 void bitChar::setBits(string characters)
 {
 	BITS = characters;
 	return;
 }
 
+// Converts a string of char 1's and 0's to binary and writes it to a file
 long long bitChar::insertBits(ofstream &outFile)
 {
 	long long total = 0;
@@ -65,6 +69,7 @@ long long bitChar::insertBits(ofstream &outFile)
 	return total;
 }
 
+// Gets binary from a compressed file and converts it to character 1's and 0's
 string bitChar::getBits(unsigned char character)
 {
 	stringstream _itoa;
@@ -79,12 +84,14 @@ string bitChar::getBits(unsigned char character)
 	return _itoa.str();
 }
 
+// Writes bits to a file
 void bitChar::writeBits(ofstream &outFile)
 {
 	outFile << *ch;
 	return;
 }
 
+// Frees ch member
 void bitChar::freeCh()
 {
 	if(ch)
